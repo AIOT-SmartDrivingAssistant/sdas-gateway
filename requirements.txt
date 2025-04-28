@@ -6,3 +6,5 @@ pymongo
 rich
 asyncio
 websockets
+pyserial
+pyserial-asyncio
