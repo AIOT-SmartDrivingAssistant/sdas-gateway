@@ -1,0 +1,8 @@
+numpy
+mediapipe
+opencv-python
+python-dotenv
+pymongo
+rich
+asyncio
+websockets
