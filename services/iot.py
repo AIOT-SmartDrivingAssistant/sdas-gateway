@@ -160,19 +160,19 @@ class IOTSystem:
     async def preprocess_data(self, sensor_type, value, uid):
         if(sensor_type == 'temp'):
             if float(value) > 50.0:
-                await Device().alarm_service(uid)
-                await Device().fan_services(uid)
+                await self.device.alarm_service(uid)
+                await self.device.fan_services(uid)
         elif (sensor_type == 'humid'):
             if float(value) > 70.0:
-                await Device().alarm_service(uid)
-                await Device().fan_services(uid)
+                await self.device.alarm_service(uid)
+                await self.device.fan_services(uid)
         elif (sensor_type == 'dis'):
             if float(value) < 5.0:
-                await Device().alarm_service(uid)
+                await self.device.alarm_service(uid)
         elif (sensor_type == 'lux'):
             if float(value) < 10.0:
-                await Device().alarm_service(uid)
-                await Device().light_service(uid)
+                await self.device.alarm_service(uid)
+                await self.device.light_service(uid)
 
     async def _start_webcam(self,uid):
         # call to database for user preferences
@@ -193,7 +193,7 @@ class IOTSystem:
                         
                         try:
                             # TODO alarm to be update to yolobit
-                            await Device().alarm_service(uid)
+                            await self.device.alarm_service(uid)
                             # self.writer.write(f"!alarm:{value}#".encode())
                             
                             # await Database().write_action_history(

@@ -9,7 +9,6 @@ class Device:
     def __init__(self, writer):
         # writer: serial_asyncio.StreamWriter
         self.writer = writer
-        self.db = Database()._instance
         self.alarm_last_state = 0
         self.alarm_timer = None
         self.fan_timer = None
@@ -24,7 +23,7 @@ class Device:
             # Turn on the alarm
             await self.writer.write(f"!alarm:1#".encode())
 
-            await Database().write_action_history(
+            await Database()._instance.write_action_history(
                 uid=uid,
                 service_type='alarm',
                 value=1
@@ -42,7 +41,7 @@ class Device:
             await self.writer.write(f"!alarm:0#".encode())
             self.alarm_last_state = 0  # Update alarm state
 
-            await Database().write_action_history(
+            await Database()._instance.write_action_history(
                 uid=uid,
                 service_type='alarm',
                 value=0
@@ -57,7 +56,7 @@ class Device:
 
             await self.writer.write(f"!fan:50#".encode())
 
-            await Database().write_action_history(
+            await Database()._instance.write_action_history(
                 uid=uid,
                 service_type='fan',
                 value=50
@@ -74,7 +73,7 @@ class Device:
 
             await self.writer.write(f"!headlight:2#".encode())
 
-            await Database().write_action_history(
+            await Database()._instance.write_action_history(
                 uid=uid,
                 service_type='headlight',
                 value=2
