@@ -8,7 +8,6 @@ from services.database import Database
 from services.webcam import VideoCam
 from services.device import Device
 
-
 WAIT_TIME = 5.0
 EAR_THRESHOLD = 0.25 
 
@@ -56,6 +55,7 @@ class IOTSystem:
         }
         
         self.videocam = VideoCam()
+        self.websocket = None
 
     async def _connect_serial(self, port):
         """Async function to connect to serial device."""
@@ -63,7 +63,7 @@ class IOTSystem:
             self.reader, self.writer = await serial_asyncio.open_serial_connection(url=port, baudrate=115200)
             CustomLogger()._get_logger().info(f"Connected to serial: {port}")
             
-            self.device = Device(self.writer)
+            self.device = Device(self.writer,self.websocket)
 
         except Exception as e:
             CustomLogger()._get_logger().exception(f"Failed to connect to serial: {e}")
@@ -136,7 +136,7 @@ class IOTSystem:
         if len(splitData) < 2:
             return
         
-        sensor_type, value = splitData[0], splitData[1]
+        sensor_type, value = splitData[0].strip(), splitData[1].strip()
 
         if self.states[sensor_type]:
             CustomLogger()._get_logger().info(f"Processed: {sensor_type} = {value}")
@@ -160,18 +160,18 @@ class IOTSystem:
     async def preprocess_data(self, sensor_type, value, uid):
         if(sensor_type == 'temp'):
             if float(value) > 50.0:
-                await self.device.alarm_service(uid)
-                await self.device.fan_services(uid)
+                # await self.device.alarm_service(uid)
+                await self.device.fan_services(uid,isTemp=1)
         elif (sensor_type == 'humid'):
             if float(value) > 70.0:
-                await self.device.alarm_service(uid)
-                await self.device.fan_services(uid)
+                # await self.device.alarm_service(uid)
+                await self.device.fan_services(uid,isTemp=0)
         elif (sensor_type == 'dis'):
             if float(value) < 5.0:
-                await self.device.alarm_service(uid)
+                await self.device.alarm_service(float(value),uid)
         elif (sensor_type == 'lux'):
             if float(value) < 10.0:
-                await self.device.alarm_service(uid)
+                # await self.device.alarm_service(uid)
                 await self.device.light_service(uid)
 
     async def _start_webcam(self,uid):
@@ -193,7 +193,7 @@ class IOTSystem:
                         
                         try:
                             # TODO alarm to be update to yolobit
-                            await self.device.alarm_service(uid)
+                            await self.device.alarm_service(uid=uid,distance=None,isDist=False)
                             # self.writer.write(f"!alarm:{value}#".encode())
                             
                             # await Database().write_action_history(
@@ -248,7 +248,7 @@ class IOTSystem:
             if port != "None":
                 # await self._connect_serial(port)
 
-                # asyncio.create_task(self._read_serial(uid))
+                asyncio.create_task(self._read_serial(uid))
                 # asyncio.create_task(self._send_serial(uid))
                 CustomLogger()._get_logger().info("Sensor System started.")
             
@@ -286,7 +286,7 @@ class IOTSystem:
         if service_type.startswith("air_cond"):
             convert_type = ["humid","temp"], "fan"
         elif service_type.startswith("headlight"):
-            convert_type = ["lux"], None
+            convert_type = ["lux"], "headlight"
         elif service_type.startswith("drowsiness"):
             convert_type = ["camera"], None
         elif service_type.startswith("dist"):
@@ -296,11 +296,13 @@ class IOTSystem:
             raise Exception(f"Unknown service type: {service_type}")
 
         write_type = service_type
-        
-        if isinstance(value, str):
+        command = None
+        if value in ['on','off']:
             # Handle on/off states
-            for cvt in convert_type[0]:
-                self.states[cvt] = value.lower() == "on"
+            command = ""
+            for type in convert_type[0]:
+                command += f'!{type}:{value}#'
+                # self.states[cvt] = value.lower() == "on"
             
         elif value is not None:
             # Handle numeric values for thresholds, temperature, etc.
@@ -310,20 +312,20 @@ class IOTSystem:
                 write_type = 'drowsiness_threshold'
 
             elif convert_type[1] is not None:
-                command = f'{convert_type[1]}:{value}#'
+                command = f'!{convert_type[1]}:{value}#'
                 write_type = 'air_cond_temp'
 
             else:
-                command = f'{convert_type[0][0]}:{value}#'
+                command = f'!{convert_type[0][0]}:{value}#'
                 write_type = 'headlight_brightness'
 
         else:
-            command = f'{convert_type[0][0]}:1#'
+            command = f'!{convert_type[0][0]}:1#'
             write_type = 'air_cond_temp' if convert_type[0][0] == 'temp' else 'headlight_brightness'
         
         try :
-            if 'command' in locals():
-                # self.writer.write(command.encode())
+            if (command is not None):
+                self.writer.write(command.encode())
                 CustomLogger()._get_logger().info(f"Execute command \"{command}\"")
 
         except Exception as e:
@@ -332,22 +334,22 @@ class IOTSystem:
 
         session = Database()._instance.client.start_session()
         try:
-            # with session.start_transaction():
-            #     Database()._instance.update_service_status(
-            #         uid=uid,
-            #         service_type=write_type,
-            #         value=value if value is not None else 1,
-            #         session=session
-            #     )
+            with session.start_transaction():
+                Database()._instance.update_service_status(
+                    uid=uid,
+                    service_type=write_type,
+                    value=value if value is not None else 1,
+                    session=session
+                )
                 
-            #     Database()._instance.write_action_history(
-            #         uid=uid,
-            #         service_type=write_type,
-            #         value=value if value is not None else 1,
-            #         session=session
-            #     )
+                Database()._instance.write_action_history(
+                    uid=uid,
+                    service_type=write_type,
+                    value=value if value is not None else 1,
+                    session=session
+                )
 
-            CustomLogger()._get_logger().info(f"Updated service status document and action history")
+                CustomLogger()._get_logger().info(f"Updated service status document and action history")
 
         except Exception as e:
             session.abort_transaction()

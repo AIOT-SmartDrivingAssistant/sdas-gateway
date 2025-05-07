@@ -34,7 +34,7 @@ class ServerConnection:
         if uid == None:
             self.connection_url = None
         else:
-            self.connection_url = f"{os.getenv("WEBSOCKETS_URL")}/{self.uid}"
+            self.connection_url = f"{os.getenv('WEBSOCKETS_URL')}/{self.uid}"
 
     async def _connect_to_server(self):
         if self.uid == None:
@@ -52,8 +52,8 @@ class ServerConnection:
                     # Run send and receive tasks concurrently
                     await asyncio.gather(
                         self._handle_server_commands(websocket),
-                        self._track_device_status(websocket)
                     )
+                    IOTSystem()._instance.websocket = websocket
 
             except (websockets.exceptions.WebSocketException, ConnectionError) as e:
                 CustomLogger()._get_logger().error(f"Connection failed (attempt {attempt + 1}/{max_retries}): {e}")
@@ -191,31 +191,7 @@ class ServerConnection:
         except Exception as e:
             CustomLogger()._get_logger().error(f"Error receiving commands: {e}")
 
-    async def _track_device_status(self, websocket):
-        option = input("Send mock notifications? (y/n): ")
-        if option == "y" or option == "Y":
-            await self._send_notification_to_server(websocket, "air_cond_service", "Mock notification")
-
-    async def _send_notification_to_server(self, websocket, service_type: str, notification: str):
-        if not websocket:
-            CustomLogger()._get_logger().warning("Cannot send notification: WebSocket connection not established")
-            return
-        
-        try:
-            await websocket.send(json.dumps(
-                {
-                    self.FIELD_DEVICE_ID: self.uid,
-                    self.FIELD_SERVICE_TYPE: service_type,
-                    self.FIELD_NOTIFICATION: notification
-                }
-            ))
-            CustomLogger()._get_logger().info(f"Sent notification to server: {notification}")
-
-        except websockets.exceptions.ConnectionClosed:
-            CustomLogger()._get_logger().warning("Cannot send notification: WebSocket connection closed")
-
-        except Exception as e:
-            CustomLogger()._get_logger().error(f"Failed to send notification: {e}")
+    
 
     def _disconnect_server_connection(self):
         try:
