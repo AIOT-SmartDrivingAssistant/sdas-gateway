@@ -68,37 +68,6 @@ class IOTSystem:
 
         except Exception as e:
             CustomLogger()._get_logger().exception(f"Failed to connect to serial: {e}")
-
-    # async def _send_serial(self, uid):
-    #     """Sends data to the serial device."""
-    #     while self.running:
-    #         try:
-    #             # Set up the change stream to watch for updates
-    #             with Database()._instance.get_device_collection().watch() as stream:
-    #                 for change in stream:
-    #                     # Check if the change is relevant to the given UID
-    #                     if change['operationType'] == 'insert':
-    #                         doc = change['fullDocument']
-    #                         doc["_id"] = str(doc["_id"])
-    #                         CustomLogger()._get_logger().info(f"Data retrieved: {doc}")
-
-    #                         feed = doc["device_type"]
-    #                         payload = doc["value"]
-
-    #                         message = f"!{feed}:{payload}#"
-    #                         CustomLogger()._get_logger().info(f"Sending data: {message}")
-
-    #                         if self.writer:
-    #                             self.writer.write(message.encode())
-    #                             CustomLogger()._get_logger().info(f"Sent: {message}")
-
-    #         except asyncio.CancelledError:
-    #             CustomLogger()._get_logger().info("sendSerial task was cancelled.")
-    #             break
-
-    #         except Exception as e:
-    #             CustomLogger()._get_logger().exception(f"Error watching database changes: {e}")
-
             
     @staticmethod
     def _get_port():
@@ -254,7 +223,7 @@ class IOTSystem:
                 CustomLogger()._get_logger().info("Sensor System started.")
             
             if self.states['camera']:
-                # asyncio.create_task(self._start_webcam(uid))
+                asyncio.create_task(self._start_webcam(uid))
                 CustomLogger()._get_logger().info("Webcam System started.")
 
         else:
@@ -262,7 +231,7 @@ class IOTSystem:
 
     async def _stop_system(self):
         self.running = False
-        # self.videocam.stop()
+        self.videocam.stop()
             
         CustomLogger()._get_logger().info("IOT System stopped.")
 
@@ -309,7 +278,7 @@ class IOTSystem:
             # Handle numeric values for thresholds, temperature, etc.
             if service_type.startswith('drowsiness'):
                 # print(self.videocam)
-                # await self.videocam.set_time_threshold(value)
+                await self.videocam.set_time_threshold(value)
                 write_type = 'drowsiness_threshold'
 
             elif convert_type[1] is not None:
