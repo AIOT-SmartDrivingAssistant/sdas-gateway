@@ -31,13 +31,13 @@ class ServerConnection:
         self.websocket = None
         self.uid = uid
 
-        if uid == None:
+        if uid is None:
             self.connection_url = None
         else:
             self.connection_url = f"{os.getenv('WEBSOCKETS_URL')}/{self.uid}"
 
     async def _connect_to_server(self):
-        if self.uid == None:
+        if self.uid is None:
             raise Exception("User ID is required to connect to the server.")
 
         max_retries = 5
@@ -45,15 +45,16 @@ class ServerConnection:
 
         for attempt in range(max_retries):
             try:
-                async with websockets.connect(self.connection_url) as websocket:
-                    self.websocket = websocket
-                    CustomLogger()._get_logger().info(f"Connected to server as {self.uid}")
+                websocket = await websockets.connect(self.connection_url)
+                self.websocket = websocket
+                IOTSystem()._instance.websocket = websocket
+                IOTSystem()._instance.uid = self.uid
+                CustomLogger()._get_logger().info(f"Connected to server as {self.uid}")
 
-                    # Run send and receive tasks concurrently
-                    await asyncio.gather(
-                        self._handle_server_commands(websocket),
-                    )
-                    IOTSystem()._instance.websocket = websocket
+                # Run send and receive tasks concurrently
+                await asyncio.gather(
+                    self._handle_server_commands(websocket),
+                )
 
             except (websockets.exceptions.WebSocketException, ConnectionError) as e:
                 CustomLogger()._get_logger().error(f"Connection failed (attempt {attempt + 1}/{max_retries}): {e}")

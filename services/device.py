@@ -8,7 +8,11 @@ import serial_asyncio
 from services.database import Database
 
 class Device:
-    def __init__(self, writer, websocket):
+    FIELD_DEVICE_ID = "device_id"
+    FIELD_SERVICE_TYPE = "service_type"
+    FIELD_NOTIFICATION = "notification"
+
+    def __init__(self, writer, uid, websocket):
         # writer: serial_asyncio.StreamWriter
         self.writer = writer
         self.alarm_last_state = 1
@@ -18,6 +22,7 @@ class Device:
         self.fan_last_state = 1
         self.light_last_state = 1
         self.websocket = websocket
+        self.uid = uid
 
     async def alarm_service(self, distance, uid,isDist=True):
         """Triggers the alarm and starts a timer to turn it off."""

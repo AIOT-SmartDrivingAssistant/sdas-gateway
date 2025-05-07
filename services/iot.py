@@ -34,6 +34,7 @@ class IOTSystem:
         self.running = False
         self.reader = None
         self.writer = None
+        self.uid = None
 
         port = self._get_port()
         if port != "None":
@@ -63,7 +64,7 @@ class IOTSystem:
             self.reader, self.writer = await serial_asyncio.open_serial_connection(url=port, baudrate=115200)
             CustomLogger()._get_logger().info(f"Connected to serial: {port}")
             
-            self.device = Device(self.writer,self.websocket)
+            self.device = Device(self.writer, self.uid, self.websocket)
 
         except Exception as e:
             CustomLogger()._get_logger().exception(f"Failed to connect to serial: {e}")
