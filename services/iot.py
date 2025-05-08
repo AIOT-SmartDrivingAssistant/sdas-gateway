@@ -146,8 +146,9 @@ class IOTSystem:
 
     async def _start_webcam(self,uid):
         # call to database for user preferences
-        thresholds = {'show_window': True}
-
+        user_doc = await self.db.get_services_status_doc_by_id(self.uid, True)
+        wait_time = user_doc['drowsiness_threshold']
+        thresholds = { 'wait_time': wait_time,'show_window': True }
         if self.videocam:
             await self.videocam.start_webcam(thresholds)
             last_alarm_state = None
@@ -159,18 +160,10 @@ class IOTSystem:
                     _,play_alarm = self.videocam.last_frame
 
                     if play_alarm != last_alarm_state:
-                        value = '1' if play_alarm else '0'
                         
                         try:
                             # TODO alarm to be update to yolobit
                             await self.device.alarm_service(uid=uid,distance=None,isDist=False)
-                            # self.writer.write(f"!alarm:{value}#".encode())
-                            
-                            # await Database().write_action_history(
-                            #     uid=uid,
-                            #     service_type='alarm',
-                            #     value=value
-                            # )
 
                         except Exception as e:
                             CustomLogger()._get_logger().exception(f"Failed to update alarm status: {e}")
@@ -269,6 +262,13 @@ class IOTSystem:
         command = None
         if value in ['on','off']:
             # Handle on/off states
+            if service_type.startswith('drowsiness'):
+                if value == 'on':
+                    await self._start_camera(self.uid)
+                    
+                else:
+                    await self.videocam.stop()
+                    
             command = ""
             for type in convert_type[0]:
                 command += f'!{type}:{value}#'
@@ -303,6 +303,7 @@ class IOTSystem:
             raise Exception(f"Failed to execute command")
 
         session = Database()._instance.client.start_session()
+        
         try:
             with session.start_transaction():
                 Database()._instance.update_service_status(
