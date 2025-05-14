@@ -57,7 +57,7 @@ class VideoCam:
                            color,
                            thickness)
          
-    def ear_detection(self,frame: np.array,thresholds):
+    def ear_detection(self,frame: np.array):
         frame = np.ascontiguousarray(frame)
         frame_h,frame_w,_ = frame.shape
         drowsy_text_pos = (10, int(frame_h // 2 * 1.7))
@@ -105,15 +105,16 @@ class VideoCam:
     async def start_webcam(self,thresholds:dict,mirror= False):
         self.running = True
         self.show_window = thresholds.get('show_window', True)
+        self.thresholds = thresholds
         self.future = self.executor.submit(
-            self._webcam_loop, thresholds, mirror
+            self._webcam_loop, mirror
         )    
     
     async def set_time_threshold(self,time):
         self.thresholds['wait_time'] = time
         
         
-    def _webcam_loop(self,thresholds:dict,mirror= False):
+    def _webcam_loop(self,mirror= False):
         print("Webcam loop started.")
         cam = cv2.VideoCapture(0)
         while self.running:
@@ -125,7 +126,7 @@ class VideoCam:
             
             rgb_frame = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
             
-            self.last_frame = self.ear_detection(rgb_frame,thresholds)
+            self.last_frame = self.ear_detection(rgb_frame)
             
             if self.show_window:
                 cv2.imshow('Driver Monitor',self.last_frame[0][:,:,::-1])
