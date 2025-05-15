@@ -62,10 +62,8 @@ class VideoCam:
         frame_h,frame_w,_ = frame.shape
         drowsy_text_pos = (10, int(frame_h // 2 * 1.7))
         results = self.facemesh.process(frame) 
-        
         if results.multi_face_landmarks:
             landmarks = results.multi_face_landmarks[0].landmark
-            
             ear, _ = dd.calculate_avg_ear(
                 landmarks,
                 self.eye_idxs['left'],
@@ -105,14 +103,8 @@ class VideoCam:
     async def start_webcam(self,thresholds:dict,mirror= False):
         self.running = True
         self.show_window = thresholds.get('show_window', True)
-        
-        default_thresholds = {
-            'ear_threshold': 0.25,
-            'wait_time': 5.0
-        }
-        default_thresholds.update(thresholds)
-        self.thresholds = default_thresholds
-        
+        self.thresholds = thresholds
+        self.thresholds['ear_threshold'] = 0.25
         self.future = self.executor.submit(
             self._webcam_loop, mirror
         )    
@@ -122,8 +114,10 @@ class VideoCam:
         
         
     def _webcam_loop(self,mirror= False):
-        print("Webcam loop started.")
+        CustomLogger()._get_logger().info("Webcam loop started.")
         cam = cv2.VideoCapture(0)
+        cam.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
         while self.running:
             ret, frame = cam.read()
             if not ret:
@@ -132,9 +126,7 @@ class VideoCam:
                 frame = cv2.flip(frame,1)
             
             rgb_frame = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
-            
             self.last_frame = self.ear_detection(rgb_frame)
-            
             if self.show_window:
                 cv2.imshow('Driver Monitor',self.last_frame[0][:,:,::-1])
                 cv2.waitKey(1)
@@ -163,17 +155,10 @@ class VideoCam:
         }
         await self.start_webcam(thresholds)
         print("Webcam started.")
-        await asyncio.sleep(10)
+        await asyncio.sleep(60)
         self.stop()
         print("Main function finished.")  
             
 if __name__ == '__main__':
     
-    asyncio.run(VideoCam().main())
-    
-            
-            
-                
-                
-            
-            
+    asyncio.run(VideoCam().main())     
