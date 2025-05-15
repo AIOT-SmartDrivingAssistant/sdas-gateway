@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from helpers.custom_logger import CustomLogger
 
 import asyncio
@@ -146,8 +149,15 @@ class IOTSystem:
 
     async def _start_webcam(self,uid):
         # call to database for user preferences
-        user_doc = await self.db.get_services_status_doc_by_id(self.uid, True)
-        wait_time = user_doc['drowsiness_threshold']
+        wait_time = None
+        try:
+            user_doc = next(Database()._instance.get_services_status_doc_by_id(uid, False))
+        except Exception as e:
+            CustomLogger()._get_logger().info("No services status document found for this user.")
+            CustomLogger()._get_logger().info("Defaulting to base threshold")
+            wait_time = 5.0
+        if not wait_time:
+            wait_time = user_doc['drowsiness_threshold'] if user_doc['drowsiness_threshold'] > 5.0 else 5.0
         thresholds = { 'wait_time': wait_time,'show_window': True }
         if self.videocam:
             await self.videocam.start_webcam(thresholds)
@@ -331,8 +341,8 @@ if __name__ == "__main__":
     import time
     CustomLogger()._get_logger().info("IOT System: __main__")
     iotsystem = IOTSystem()._instance
-    asyncio.run(iotsystem._start_system('123'))
+    asyncio.run(iotsystem._start_camera("680fbaef3ae127ba8360f6dd"))
     
-    time.sleep(20)
+    time.sleep(10)
     
     iotsystem._stop_system()
