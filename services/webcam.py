@@ -82,6 +82,8 @@ class VideoCam:
                 if self.state['drowsy_time'] >= self.thresholds['wait_time']:
                     self.state['play_alarm'] = True
                     #TODO: implement alarm mechanic
+                else:
+                    self.state['play_alarm'] = False
                     
                     
             else:

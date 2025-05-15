@@ -173,7 +173,8 @@ class IOTSystem:
 
                         try:
                             # TODO alarm to be update to yolobit
-                            await self.device.alarm_service(uid=uid,distance=None,isDist=False)
+                            if play_alarm is True:
+                                await self.device.alarm_service(uid=uid,distance=None,isDist=False)
                             CustomLogger()._get_logger().info(f"Alarm status updated: {play_alarm}")
 
                         except Exception as e:
