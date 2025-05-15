@@ -32,6 +32,7 @@ class IOTSystem:
         return cls._instance
 
     def _init_iot_system(self, config=None):
+        self._serial_read_task = None
         CustomLogger()._get_logger().info("IOT System initialized.")
         self.db = Database()._instance
         self.running = False
@@ -56,6 +57,13 @@ class IOTSystem:
             'lux': True,
             'dis': True,
             'camera': True
+        }
+
+        self.thresholds = {
+            'temp_threshold': 40.0,
+            'humid_threshold': 70.0,
+            'dis_threshold': 5.0,
+            'lux_threshold': 10.0
         }
         
         self.videocam = VideoCam()
@@ -122,7 +130,7 @@ class IOTSystem:
                         'value': float(value)
                     }
 
-                    await self.preprocess_data(sensor_type, value, uid)
+                    await self.preprocess_data(sensor_type, value)
 
                     Database()._instance._add_doc_with_timestamp('environment_sensor', doc)
 
@@ -130,22 +138,43 @@ class IOTSystem:
                     CustomLogger()._get_logger().exception(f"Invalid data format: {sensor_type} -> {value}")
                     Database()._instance._add_doc_with_timestamp('environment_sensor', doc)
 
-    async def preprocess_data(self, sensor_type, value, uid):
-        if(sensor_type == 'temp'):
-            if float(value) > 50.0:
-                # await self.device.alarm_service(uid)
-                await self.device.fan_services(uid,isTemp=1)
-        elif (sensor_type == 'humid'):
-            if float(value) > 70.0:
-                # await self.device.alarm_service(uid)
-                await self.device.fan_services(uid,isTemp=0)
-        elif (sensor_type == 'dis'):
-            if float(value) < 5.0:
-                await self.device.alarm_service(float(value),uid)
-        elif (sensor_type == 'lux'):
-            if float(value) < 10.0:
-                # await self.device.alarm_service(uid)
-                await self.device.light_service(uid)
+    async def set_thresholds(self, sensor_type, value):
+
+        if value is None:
+            return
+
+        valid_types = {'temp_threshold', 'humid_threshold', 'dis_threshold', 'lux_threshold'}
+        if sensor_type in valid_types:
+            self.thresholds[sensor_type] = float(value)
+        else:
+            CustomLogger()._get_logger().warning(f"Unknown sensor_type: {sensor_type}")
+
+    async def preprocess_data(self, sensor_type, value):
+        """
+        Gửi giá trị sensor và threshold tới service tương ứng.
+        """
+        thresholds = self.thresholds
+        # Map sensor_type sang key threshold
+        threshold_key_map = {
+            'temp': 'temp_threshold',
+            'humid': 'humid_threshold',
+            'dis': 'dis_threshold',
+            'lux': 'lux_threshold',
+        }
+        actions = {
+            'temp': lambda v, t: self.device.fan_services(value=float(v), threshold=t, isTemp=1),
+            'humid': lambda v, t: self.device.fan_services(value=float(v), threshold=t, isTemp=0),
+            'dis': lambda v, t: self.device.alarm_service(value=float(v), threshold=t, isDist=True),
+            'lux': lambda v, t: self.device.light_service(value=float(v), threshold=t),
+        }
+        action = actions.get(sensor_type)
+        threshold_key = threshold_key_map.get(sensor_type)
+        if action and threshold_key in thresholds:
+            threshold = thresholds[threshold_key]
+            result = action(value, threshold)
+            if asyncio.iscoroutine(result):
+                await result
+
 
     async def _start_webcam(self,uid):
         # call to database for user preferences
@@ -174,7 +203,7 @@ class IOTSystem:
                         try:
                             # TODO alarm to be update to yolobit
                             if play_alarm is True:
-                                await self.device.alarm_service(uid=uid,distance=None,isDist=False)
+                                await self.device.alarm_service(uid=uid, value=None,threshold=None, isDist=False)
                             CustomLogger()._get_logger().info(f"Alarm status updated: {play_alarm}")
 
                         except Exception as e:
@@ -223,7 +252,8 @@ class IOTSystem:
             if port != "None":
                 # await self._connect_serial(port)
 
-                asyncio.create_task(self._read_serial(uid))
+                if self._serial_read_task is None or self._serial_read_task.done():
+                    self._serial_read_task = asyncio.create_task(self._read_serial(uid))
                 # asyncio.create_task(self._send_serial(uid))
                 CustomLogger()._get_logger().info("Sensor System started.")
             
@@ -258,13 +288,13 @@ class IOTSystem:
             CustomLogger()._get_logger().warning("No serial connection available")
             # raise Exception("No serial connection available")
             
-        if service_type.startswith("air_cond"):
+        if service_type.startswith("air_cond_service"):
             convert_type = ["humid","temp"], "fan"
-        elif service_type.startswith("headlight"):
-            convert_type = ["lux"], "headlight"
-        elif service_type.startswith("drowsiness"):
+        elif service_type.startswith("headlight_service"):
+            convert_type = ["lux"], "light"
+        elif service_type.startswith("drowsiness_service"):
             convert_type = ["camera"], None
-        elif service_type.startswith("dist"):
+        elif service_type.startswith("distance_service"):
             convert_type = ["dis"], None
         else:
             CustomLogger()._get_logger().warning(f"Unknown service type: {service_type}")
@@ -283,9 +313,7 @@ class IOTSystem:
             command = ""
             for type in convert_type[0]:
                 command += f'!{type}:{value}#'
-                if (service_type.startswith('headlight')):
-                    command += '!headlight:0#'
-                # self.states[cvt] = value.lower() == "on"
+            command += f'!{convert_type[1]}:{value}#'
             
         elif value is not None:
             # Handle numeric values for thresholds, temperature, etc.
@@ -305,6 +333,7 @@ class IOTSystem:
         try :
             if (command is not None):
                 self.writer.write(command.encode())
+                print(command.encode())
                 CustomLogger()._get_logger().info(f"Execute command \"{command}\"")
 
         except Exception as e:

@@ -182,9 +182,36 @@ class ServerConnection:
                         ))
 
                         notification_message = f"Execute command on \"{command['target']}\" successfully"
-
+                
                     except Exception as e:
                         CustomLogger()._get_logger().error(f"Failed to control service: {e.args[0]}")
+
+                        await websocket.send(json.dumps(
+                            {
+                                self.FIELD_DEVICE_ID: self.uid,
+                                self.FIELD_COMMAND_ID: command_id,
+                                self.FIELD_STATUS: "fail",
+                                self.FIELD_MESSAGE: str(e.args[0])
+                            }
+                        ))
+                        continue
+
+                elif "threshold" in command[self.FIELD_TARGET]:
+                    try:
+                        await IOTSystem().set_thresholds(command[self.FIELD_TARGET], command[self.FIELD_VALUE])
+                        CustomLogger()._get_logger().info(f"Set sensor threshold {command['target']} with value {command['value']}")
+
+                        await websocket.send(json.dumps(
+                            {
+                                self.FIELD_DEVICE_ID: self.uid,
+                                self.FIELD_COMMAND_ID: command_id,
+                                self.FIELD_STATUS: "success"
+                            }
+                        ))
+                        notification_message = f"Execute command on \"{command['target']}\" successfully"
+
+                    except Exception as e:
+                        CustomLogger()._get_logger().error(f"Failed to set sensor threshold: {e.args[0]}")
 
                         await websocket.send(json.dumps(
                             {
