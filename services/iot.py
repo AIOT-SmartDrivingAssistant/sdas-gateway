@@ -308,30 +308,6 @@ class IOTSystem:
             CustomLogger()._get_logger().error(f"Failed to execute command: {e}")
             raise Exception(f"Failed to execute command")
 
-        session = Database()._instance.client.start_session()
-        
-        try:
-            with session.start_transaction():
-                Database()._instance.update_service_status(
-                    uid=uid,
-                    service_type=write_type,
-                    value=value if value is not None else 1,
-                    session=session
-                )
-                
-                Database()._instance.write_action_history(
-                    uid=uid,
-                    service_type=write_type,
-                    value=value if value is not None else 1,
-                    session=session
-                )
-
-                CustomLogger()._get_logger().info(f"Updated service status document and action history")
-
-        except Exception as e:
-            session.abort_transaction()
-            CustomLogger()._get_logger().error(f"Failed to update service status: {e}")
-            raise Exception(f"Failed to update service status document")
     async def main(self):
         await self._start_camera("680fbaef3ae127ba8360f6dd")
         await asyncio.sleep(60)
