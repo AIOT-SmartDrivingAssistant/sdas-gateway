@@ -270,7 +270,6 @@ class IOTSystem:
             CustomLogger()._get_logger().warning(f"Unknown service type: {service_type}")
             raise Exception(f"Unknown service type: {service_type}")
 
-        write_type = service_type
         command = None
         if value in ['on','off']:
             # Handle on/off states
@@ -291,19 +290,15 @@ class IOTSystem:
             if service_type.startswith('drowsiness'):
                 # print(self.videocam)
                 await self.videocam.set_time_threshold(value)
-                write_type = 'drowsiness_threshold'
 
             elif convert_type[1] is not None:
                 command = f'!{convert_type[1]}:{value}#'
-                write_type = 'air_cond_temp'
 
             else:
                 command = f'!{convert_type[0][0]}:{value}#'
-                write_type = 'headlight_brightness'
 
         else:
             command = f'!{convert_type[0][0]}:1#'
-            write_type = 'air_cond_temp' if convert_type[0][0] == 'temp' else 'headlight_brightness'
         
         try :
             if (command is not None):
@@ -314,30 +309,6 @@ class IOTSystem:
             CustomLogger()._get_logger().error(f"Failed to execute command: {e}")
             raise Exception(f"Failed to execute command")
 
-        session = Database()._instance.client.start_session()
-        
-        try:
-            with session.start_transaction():
-                Database()._instance.update_service_status(
-                    uid=uid,
-                    service_type=write_type,
-                    value=value if value is not None else 1,
-                    session=session
-                )
-                
-                Database()._instance.write_action_history(
-                    uid=uid,
-                    service_type=write_type,
-                    value=value if value is not None else 1,
-                    session=session
-                )
-
-                CustomLogger()._get_logger().info(f"Updated service status document and action history")
-
-        except Exception as e:
-            session.abort_transaction()
-            CustomLogger()._get_logger().error(f"Failed to update service status: {e}")
-            raise Exception(f"Failed to update service status document")
     async def main(self):
         await self._start_camera("680fbaef3ae127ba8360f6dd")
         await asyncio.sleep(60)
