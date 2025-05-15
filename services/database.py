@@ -22,7 +22,7 @@ class Database:
         return cls._instance
 
     def _init_database(self, config, test_mode=False):
-        if config == None or not config.contains("mongo_url") or not config.contains("db_name"):
+        if config is None or not config.contains("mongo_url") or not config.contains("db_name"):
             config = {
                 "mongo_url": os.getenv("MONGODB_URL"),
                 "db_name": os.getenv("MONGODB_DB_NAME")

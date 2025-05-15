@@ -1,3 +1,4 @@
+from datetime import datetime
 from helpers.custom_logger import CustomLogger
 
 import os
@@ -20,6 +21,7 @@ class ServerConnection:
     FIELD_MESSAGE = "message"
     FIELD_SERVICE_TYPE = "service_type"
     FIELD_NOTIFICATION = "notification"
+    FIELD_TIMESTAMP = "timestamp"
 
     def __new__(cls, uid: str = None):
         if not cls._instance:
@@ -80,7 +82,7 @@ class ServerConnection:
 
                 CustomLogger()._get_logger().info(f"Received command: {data}")
 
-                if not self.FIELD_COMMAND in data or not self.FIELD_COMMAND_ID in data:
+                if self.FIELD_COMMAND not in data or self.FIELD_COMMAND_ID not in data:
                     CustomLogger()._get_logger().error(f"Invalid message: {data}")
                     websocket.send(json.dumps(
                         {
@@ -95,7 +97,7 @@ class ServerConnection:
                 command = data[self.FIELD_COMMAND]
                 command_id = data[self.FIELD_COMMAND_ID]
 
-                if not self.FIELD_TARGET in command or not self.FIELD_VALUE in command:
+                if self.FIELD_TARGET not in command or self.FIELD_VALUE not in command:
                     CustomLogger()._get_logger().error(f"Invalid command: {data}")
                     websocket.send(json.dumps(
                         {
@@ -106,6 +108,8 @@ class ServerConnection:
                         }
                     ))
                     continue
+
+                notification_message = None
 
                 if command[self.FIELD_TARGET] == "system":
                     if command[self.FIELD_VALUE] == "on":
@@ -120,6 +124,8 @@ class ServerConnection:
                                     self.FIELD_STATUS: "success"
                                 }
                             ))
+
+                            notification_message = "Turn on system successfully"
                         
                         except Exception as e:
                             CustomLogger()._get_logger().error(f"Failed to start system: {e.args[0]}")
@@ -147,8 +153,10 @@ class ServerConnection:
                                 }
                             ))
 
+                            notification_message = "Turn off system successfully"
+
                         except Exception as e:
-                            CustomLogger()._get_logger().error(f"Failed to stop system: {e.args[0]}")
+                            CustomLogger()._get_logger().error(f"Failed to stop system: {e}")
                             await websocket.send(json.dumps(
                                 {
                                     self.FIELD_DEVICE_ID: self.uid,
@@ -173,6 +181,8 @@ class ServerConnection:
                             }
                         ))
 
+                        notification_message = f"Execute command on \"{command['target']}\" successfully"
+
                     except Exception as e:
                         CustomLogger()._get_logger().error(f"Failed to control service: {e.args[0]}")
 
@@ -186,13 +196,16 @@ class ServerConnection:
                         ))
                         continue
 
+                await self._send_notification_to_server(
+                    service_type=command[self.FIELD_TARGET],
+                    notification=notification_message
+                )
+
         except websockets.exceptions.ConnectionClosed:
             CustomLogger()._get_logger().warning("Disconnected")
  
         except Exception as e:
             CustomLogger()._get_logger().error(f"Error receiving commands: {e}")
-
-    
 
     def _disconnect_server_connection(self):
         try:
@@ -201,3 +214,26 @@ class ServerConnection:
 
         except Exception as e:
             CustomLogger()._get_logger().error(f"Failed to disconnect from server: {e}")
+
+    async def _send_notification_to_server(self, service_type: str, notification: str):
+        websocket = self.websocket
+        if not websocket:
+            CustomLogger()._get_logger().warning("Cannot send notification: WebSocket connection not established")
+            return
+        
+        try:
+            await websocket.send(json.dumps(
+                {
+                    self.FIELD_DEVICE_ID: self.uid,
+                    self.FIELD_SERVICE_TYPE: service_type,
+                    self.FIELD_NOTIFICATION: notification,
+                    self.FIELD_TIMESTAMP: datetime.now().isoformat()
+                }
+            ))
+            CustomLogger()._get_logger().info(f"Sent notification to server: {notification}")
+
+        except websockets.exceptions.ConnectionClosed:
+            CustomLogger()._get_logger().warning("Cannot send notification: WebSocket connection closed")
+
+        except Exception as e:
+            CustomLogger()._get_logger().error(f"Failed to send notification: {e}")

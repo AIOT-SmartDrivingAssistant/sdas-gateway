@@ -1,16 +1,18 @@
+from datetime import datetime
 from helpers.custom_logger import CustomLogger
 
 import websockets
 import asyncio
 import json
-import serial_asyncio
+# import serial_asyncio
 
-from services.database import Database
+# from services.database import Database
 
 class Device:
     FIELD_DEVICE_ID = "device_id"
     FIELD_SERVICE_TYPE = "service_type"
     FIELD_NOTIFICATION = "notification"
+    FIELD_TIMESTAMP = "timestamp"
 
     def __init__(self, writer, uid, websocket):
         # writer: serial_asyncio.StreamWriter
@@ -31,13 +33,12 @@ class Device:
             # Turn on the alarm
             self.writer.write(f"!alarm:1#".encode())
 
-            Database()._instance.write_action_history(
-                uid=uid,
-                service_type='alarm',
-                value=1,
-                session=None
-
-            )
+            # Database()._instance.write_action_history(
+            #     uid=uid,
+            #     service_type='alarm',
+            #     value=1,
+            #     session=None
+            # )
 
             self.alarm_last_state = 0  # Update alarm state
             
@@ -56,13 +57,13 @@ class Device:
 
             self.alarm_last_state = 1  # Update alarm state
 
-            Database()._instance.write_action_history(
-                uid=uid,
-                service_type='alarm',
-                value=0,
-                session=None
+            # Database()._instance.write_action_history(
+            #     uid=uid,
+            #     service_type='alarm',
+            #     value=0,
+            #     session=None
 
-            )
+            # )
             CustomLogger()._get_logger().info("Alarm turned off automatically.")
         except Exception as e:
             CustomLogger()._get_logger().exception(f"Failed to turn off alarm: {e}")
@@ -74,12 +75,12 @@ class Device:
             self.writer.write(f"!fan:50#".encode())
             CustomLogger()._get_logger().info("Turn on Fan")
 
-            Database()._instance.write_action_history(
-                uid=uid,
-                service_type='fan',
-                value=50,
-                session=None
-            )
+            # Database()._instance.write_action_history(
+            #     uid=uid,
+            #     service_type='fan',
+            #     value=50,
+            #     session=None
+            # )
 
             self.fan_last_state = 0  # Update alarm state
             CustomLogger()._get_logger().info("Turn on delay FAN")
@@ -98,13 +99,12 @@ class Device:
 
             self.writer.write(f"!headlight:2#".encode())
 
-            Database()._instance.write_action_history(
-                uid=uid,
-                service_type='headlight',
-                value=2,
-                session=None
-            )
-
+            # Database()._instance.write_action_history(
+            #     uid=uid,
+            #     service_type='headlight',
+            #     value=2,
+            #     session=None
+            # )
 
             self.light_last_state = 0  # Update alarm state
             CustomLogger()._get_logger().info("Turn on delay Light")
@@ -138,7 +138,8 @@ class Device:
                 {
                     self.FIELD_DEVICE_ID: self.uid,
                     self.FIELD_SERVICE_TYPE: service_type,
-                    self.FIELD_NOTIFICATION: notification
+                    self.FIELD_NOTIFICATION: notification,
+                    self.FIELD_TIMESTAMP: datetime.now().isoformat()
                 }
             ))
             CustomLogger()._get_logger().info(f"Sent notification to server: {notification}")

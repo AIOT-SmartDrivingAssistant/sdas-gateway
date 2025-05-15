@@ -105,7 +105,14 @@ class VideoCam:
     async def start_webcam(self,thresholds:dict,mirror= False):
         self.running = True
         self.show_window = thresholds.get('show_window', True)
-        self.thresholds = thresholds
+        
+        default_thresholds = {
+            'ear_threshold': 0.25,
+            'wait_time': 5.0
+        }
+        default_thresholds.update(thresholds)
+        self.thresholds = default_thresholds
+        
         self.future = self.executor.submit(
             self._webcam_loop, mirror
         )    
