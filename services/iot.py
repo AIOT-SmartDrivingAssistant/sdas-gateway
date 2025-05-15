@@ -16,7 +16,7 @@ EAR_THRESHOLD = 0.25
 
 FIELD_ACCESS = {
     'air_cond_service': ('humid','temp'),
-    'dist_service': 'dis',
+    'distance_service': 'dis',
     'headlight_service': 'lux',
     'drowsiness_service': 'camera',
     'drowsiness_threshold': 'wait_time',
