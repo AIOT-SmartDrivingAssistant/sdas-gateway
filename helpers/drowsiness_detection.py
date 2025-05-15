@@ -13,6 +13,9 @@ def eye_aspect_ratio(eye):
     dist_p3_p5 = math.dist(eye[2],eye[4])
     dist_p1_p4 = math.dist(eye[0],eye[3])
     
+    if dist_p1_p4 == 0:
+        return 0.0
+    
     return (dist_p2_p6 + dist_p3_p5) / (2.0 * dist_p1_p4) 
 
 def get_ear(landmarks, refer_idxs, frame_w, frame_h):

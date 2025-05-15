@@ -161,7 +161,7 @@ class IOTSystem:
         thresholds = { 'wait_time': wait_time,'show_window': True }
         if self.videocam:
             await self.videocam.start_webcam(thresholds)
-            last_alarm_state = None
+            last_alarm_state = False
 
             while self.videocam.running:
                 await asyncio.sleep(0.1)
@@ -170,10 +170,11 @@ class IOTSystem:
                     _,play_alarm = self.videocam.last_frame
 
                     if play_alarm != last_alarm_state:
-                        
+
                         try:
                             # TODO alarm to be update to yolobit
                             await self.device.alarm_service(uid=uid,distance=None,isDist=False)
+                            CustomLogger()._get_logger().info(f"Alarm status updated: {play_alarm}")
 
                         except Exception as e:
                             CustomLogger()._get_logger().exception(f"Failed to update alarm status: {e}")
@@ -336,13 +337,16 @@ class IOTSystem:
             session.abort_transaction()
             CustomLogger()._get_logger().error(f"Failed to update service status: {e}")
             raise Exception(f"Failed to update service status document")
-        
+    async def main(self):
+        await self._start_camera("680fbaef3ae127ba8360f6dd")
+        await asyncio.sleep(60)
+        await self._stop_camera()
+        print("Main function finished.") 
 if __name__ == "__main__":
     import time
     CustomLogger()._get_logger().info("IOT System: __main__")
     iotsystem = IOTSystem()._instance
-    asyncio.run(iotsystem._start_camera("680fbaef3ae127ba8360f6dd"))
+    asyncio.run(iotsystem.main())    
+        # iotsystem._start_system("680fbaef3ae127ba8360f6dd")
+        # iotsystem._stop_system()
     
-    time.sleep(10)
-    
-    iotsystem._stop_system()
