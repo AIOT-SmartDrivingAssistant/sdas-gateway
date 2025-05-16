@@ -11,6 +11,9 @@ from services.database import Database
 from services.webcam import VideoCam
 from services.device import Device
 
+from unittest.mock import MagicMock
+
+
 WAIT_TIME = 5.0
 EAR_THRESHOLD = 0.25 
 
@@ -39,6 +42,9 @@ class IOTSystem:
         self.reader = None
         self.writer = None
         self.uid = None
+
+        self.device = MagicMock()
+
 
         port = self._get_port()
         if port != "None":
@@ -75,7 +81,7 @@ class IOTSystem:
             self.reader, self.writer = await serial_asyncio.open_serial_connection(url=port, baudrate=115200)
             CustomLogger()._get_logger().info(f"Connected to serial: {port}")
             
-            self.device = Device(self.writer, self.uid, self.websocket)
+            # self.device = Device(self.writer, self.uid, self.websocket)
 
         except Exception as e:
             CustomLogger()._get_logger().exception(f"Failed to connect to serial: {e}")
@@ -203,7 +209,7 @@ class IOTSystem:
                         try:
                             # TODO alarm to be update to yolobit
                             if play_alarm is True:
-                                await self.device.alarm_service(uid=uid, value=None,threshold=None, isDist=False)
+                                 self.device.alarm_service(uid=uid, value=None,threshold=None, isDist=False)
                             CustomLogger()._get_logger().info(f"Alarm status updated: {play_alarm}")
 
                         except Exception as e:
@@ -332,8 +338,7 @@ class IOTSystem:
         
         try :
             if (command is not None):
-                self.writer.write(command.encode())
-                print(command.encode())
+                # self.writer.write(command.encode())
                 CustomLogger()._get_logger().info(f"Execute command \"{command}\"")
 
         except Exception as e:
@@ -352,4 +357,6 @@ if __name__ == "__main__":
     asyncio.run(iotsystem.main())    
         # iotsystem._start_system("680fbaef3ae127ba8360f6dd")
         # iotsystem._stop_system()
+
+
     
