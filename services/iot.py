@@ -62,8 +62,8 @@ class IOTSystem:
         self.thresholds = {
             'temp_threshold': 40.0,
             'humid_threshold': 70.0,
-            'dis_threshold': 5.0,
-            'lux_threshold': 10.0
+            'dis_threshold': 10.0,
+            'lux_threshold': 20.0
         }
         
         self.videocam = VideoCam()
