@@ -218,7 +218,7 @@ class ServerConnection:
 
                 elif "threshold" in command[self.FIELD_TARGET]:
                     try:
-                        await IOTSystem().set_thresholds(command[self.FIELD_TARGET], command[self.FIELD_VALUE])
+                        await IOTSystem().set_thresholds(self.uid, command[self.FIELD_TARGET], command[self.FIELD_VALUE])
                         CustomLogger()._get_logger().info(f"Set sensor threshold {command['target']} with value {command['value']}")
 
                         await websocket.send(json.dumps(

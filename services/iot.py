@@ -192,7 +192,11 @@ class IOTSystem:
             CustomLogger()._get_logger().info("Defaulting to base threshold")
             wait_time = 5.0
         if not wait_time:
-            wait_time = user_doc['drowsiness_threshold'] if user_doc['drowsiness_threshold'] > 5.0 else 5.0
+            try:
+                wait_time_val = float(user_doc['drowsiness_threshold'])
+            except (KeyError, ValueError, TypeError):
+                wait_time_val = 5.0
+            wait_time = wait_time_val if wait_time_val > 5.0 else 5.0
         thresholds = { 'wait_time': wait_time,'show_window': True }
         if self.videocam:
             await self.videocam.start_webcam(thresholds)
