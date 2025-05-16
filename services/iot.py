@@ -130,7 +130,7 @@ class IOTSystem:
                         'value': float(value)
                     }
 
-                    await self.preprocess_data(sensor_type, value)
+                    await self.preprocess_data(self.uid, sensor_type, value)
 
                     Database()._instance._add_doc_with_timestamp('environment_sensor', doc)
 
@@ -138,7 +138,7 @@ class IOTSystem:
                     CustomLogger()._get_logger().exception(f"Invalid data format: {sensor_type} -> {value}")
                     Database()._instance._add_doc_with_timestamp('environment_sensor', doc)
 
-    async def set_thresholds(self, sensor_type, value):
+    async def set_thresholds(self, uid, sensor_type, value):
 
         if value is None:
             return
@@ -149,7 +149,7 @@ class IOTSystem:
         else:
             CustomLogger()._get_logger().warning(f"Unknown sensor_type: {sensor_type}")
 
-    async def preprocess_data(self, sensor_type, value):
+    async def preprocess_data(self, uid, sensor_type, value):
         """
         Gửi giá trị sensor và threshold tới service tương ứng.
         """
@@ -164,7 +164,7 @@ class IOTSystem:
         actions = {
             'temp': lambda v, t: self.device.fan_services(value=float(v), threshold=t, isTemp=1),
             'humid': lambda v, t: self.device.fan_services(value=float(v), threshold=t, isTemp=0),
-            'dis': lambda v, t: self.device.alarm_service(value=float(v), threshold=t, isDist=True),
+            'dis': lambda v, t: self.device.alarm_service(self.uid ,value=float(v), threshold=t, isDist=True),
             'lux': lambda v, t: self.device.light_service(value=float(v), threshold=t),
         }
         action = actions.get(sensor_type)

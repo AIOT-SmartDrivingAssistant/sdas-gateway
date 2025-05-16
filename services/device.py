@@ -18,29 +18,32 @@ class Device:
         # writer: serial_asyncio.StreamWriter
         self.writer = writer
         self.alarm_last_state = 1
+
         self.alarm_timer = None
         self.fan_timer = None
         self.light_timer = None
         self.fan_last_state = 1
-        self.light_last_state = 1
+        self.light_last_state_dist = 1
+        self.alarm_last_state_drowisness = 1 
         self.websocket = websocket
         self.uid = uid
 
-    async def alarm_service(self, value, threshold, isDist=True):
+    async def alarm_service(self,uid ,  value, threshold, isDist=True):
         """Triggers the alarm and starts a timer to turn it off."""
-        if(self.alarm_last_state == 1):
-            if(isDist):
+        if(isDist):
+            if(self.alarm_last_state_dist == 1):
                 if(value < threshold):
                     self.writer.write(f"!alarm:1#".encode())
-                    self.alarm_last_state = 0  # Update alarm state
+                    self.alarm_last_state_dist = 0  # Update alarm state
                     asyncio.create_task(self._turn_off_alarm())
 
                 await self._send_notification_to_server("disttance_service",f"Proximity Alert: Object ahead is within {value} cm ahead!")
-            else:    
-                # Turn on the alarm
+        else:    
+            # Turn on the alarm
+            if(self.alarm_last_state_drowisness == 1):
                 self.writer.write(f"!alarm:1#".encode())
 
-                self.alarm_last_state = 0  # Update alarm state
+                self.alarm_last_state_drowisness = 0  # Update alarm state
                 
                 asyncio.create_task(self._turn_off_alarm())
 
@@ -53,15 +56,11 @@ class Device:
             self.writer.write(f"!alarm:0#".encode())
             CustomLogger()._get_logger().info("Turn off alarm")
 
-            self.alarm_last_state = 1  # Update alarm state
-
-            # Database()._instance.write_action_history(
-            #     uid=uid,
-            #     service_type='alarm',
-            #     value=0,
-            #     session=None
-
-            # )
+            if(self.alarm_last_state_drowisness == 0):
+                self.alarm_last_state_drowisness = 1  # Update alarm state
+            if(self.light_last_state_dist == 0):
+                self.light_last_state_dist = 1
+                
             CustomLogger()._get_logger().info("Alarm turned off automatically.")
         except Exception as e:
             CustomLogger()._get_logger().exception(f"Failed to turn off alarm: {e}")
