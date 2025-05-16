@@ -313,7 +313,7 @@ class IOTSystem:
             command = ""
             for type in convert_type[0]:
                 command += f'!{type}:{value}#'
-            command += f'!{convert_type[1]}:{value}#'
+            # command += f'!{convert_type[1]}:{value}#'
             
         elif value is not None:
             # Handle numeric values for thresholds, temperature, etc.

@@ -17,51 +17,64 @@ class Device:
     def __init__(self, writer, uid, websocket):
         # writer: serial_asyncio.StreamWriter
         self.writer = writer
-        self.alarm_last_state = 1
 
-        self.alarm_timer = None
-        self.fan_timer = None
-        self.light_timer = None
         self.fan_last_state = 1
-        self.light_last_state_dist = 1
+        self.light_last_state = 1
+        self.alarm_last_state_dist = 1
         self.alarm_last_state_drowisness = 1 
         self.websocket = websocket
         self.uid = uid
 
-    async def alarm_service(self,uid ,  value, threshold, isDist=True):
-        """Triggers the alarm and starts a timer to turn it off."""
-        if(isDist):
-            if(self.alarm_last_state_dist == 1):
-                if(value < threshold):
-                    self.writer.write(f"!alarm:1#".encode())
-                    self.alarm_last_state_dist = 0  # Update alarm state
-                    asyncio.create_task(self._turn_off_alarm())
+    async def alarm_service(self, uid, value, threshold, isDist=True):
+        """
+        Triggers the alarm and starts a timer to turn it off.
+        Sends notification if alarm is triggered.
+        """
+        alarm_triggered = False
+        notification_service = ""
+        notification_msg = ""
 
-                await self._send_notification_to_server("disttance_service",f"Proximity Alert: Object ahead is within {value} cm ahead!")
-        else:    
-            # Turn on the alarm
-            if(self.alarm_last_state_drowisness == 1):
+        if isDist:
+            if self.alarm_last_state_dist == 1 and value < threshold:
+                alarm_triggered = True
+                self.alarm_last_state_dist = 0
+                notification_service = "distance_service"
+                notification_msg = f"Proximity Alert: Object ahead is within {value} cm ahead!"
+        else:
+            if self.alarm_last_state_drowisness == 1:
+                alarm_triggered = True
+                self.alarm_last_state_drowisness = 0
+                notification_service = "drowsiness_service"
+                notification_msg = "Fatigue Warning: Signs of drowsiness detected!"
+
+        if alarm_triggered:
+            try:
                 self.writer.write(f"!alarm:1#".encode())
-
-                self.alarm_last_state_drowisness = 0  # Update alarm state
-                
+                CustomLogger()._get_logger().info("Alarm triggered and turned ON.")
                 asyncio.create_task(self._turn_off_alarm())
+            except Exception as e:
+                CustomLogger()._get_logger().exception(f"Failed to trigger alarm: {e}")
 
-                await self._send_notification_to_server("drowsiness_service",f"Fatigue Warning: Signs of drowsiness detected!")
+            if notification_service and notification_msg:
+                await self._send_notification_to_server(notification_service, notification_msg)
 
     async def _turn_off_alarm(self, delay=5):
-        """Turn off the alarm after a delay (default: 5 seconds)."""
+        """
+        Turn off the alarm after a delay (default: 5 seconds).
+        Resets alarm and light states as needed.
+        """
         try:
             await asyncio.sleep(delay)
             self.writer.write(f"!alarm:0#".encode())
-            CustomLogger()._get_logger().info("Turn off alarm")
+            CustomLogger()._get_logger().info("Alarm turned OFF after delay.")
 
-            if(self.alarm_last_state_drowisness == 0):
-                self.alarm_last_state_drowisness = 1  # Update alarm state
-            if(self.light_last_state_dist == 0):
-                self.light_last_state_dist = 1
-                
-            CustomLogger()._get_logger().info("Alarm turned off automatically.")
+            # Reset states
+            if self.alarm_last_state_drowisness == 0:
+                self.alarm_last_state_drowisness = 1
+            if self.alarm_last_state_dist == 0:
+                self.alarm_last_state_dist = 1
+
+            CustomLogger()._get_logger().info("Alarm and related states reset automatically.")
         except Exception as e:
             CustomLogger()._get_logger().exception(f"Failed to turn off alarm: {e}")
 
@@ -79,17 +92,15 @@ class Device:
             speed = int(min_speed + percent * (max_speed - min_speed))
 
             self.writer.write(f"!fan:{speed}#".encode())
-
-            CustomLogger()._get_logger().info(f"Turn on Fan (value={value} > threshold={threshold}, speed={speed})")
-
-            self.fan_last_state = 0  # Update fan state
-            CustomLogger()._get_logger().info("Turn on delay FAN")
+            self.fan_last_state = 0
 
             asyncio.create_task(self.turn_off_delay("fan"))
+
             if isTemp:
                 await self._send_notification_to_server("air_cond_service", f"Decrease AC's temperature (fan speed {speed})")
             else:
                 await self._send_notification_to_server("air_cond_service", f"Decrease AC's humidity (fan speed {speed})")
+            
         else:
             CustomLogger()._get_logger().info(f"Fan not activated (value={value}, threshold={threshold}, fan_last_state={self.fan_last_state})")
 
@@ -106,13 +117,11 @@ class Device:
             light_level = int(min_light + percent * (max_light - min_light))
 
             self.writer.write(f"!light:{light_level}#".encode())
-            print(f"!light:{light_level}#")
-            CustomLogger()._get_logger().info(f"Turn on Light (value={value} < threshold={threshold}, level={light_level})")
 
-            self.light_last_state = 0  # Update alarm state
-            CustomLogger()._get_logger().info("Turn on delay Light")
+            self.light_last_state = 0
 
             asyncio.create_task(self.turn_off_delay("headlight"))
+
             await self._send_notification_to_server("headlight_service", f"Turn on headlight (level {light_level})")
         else:
             CustomLogger()._get_logger().info(f"Light not activated (value={value}, threshold={threshold}, light_last_state={self.light_last_state})")
@@ -122,14 +131,9 @@ class Device:
         await  asyncio.sleep(delay)
 
         if device_type == "fan":
-            # await asyncio.sleep(delay)
-            CustomLogger()._get_logger().info("Turn off delay Fan")
-
             self.fan_last_state = 1
-        elif device_type == "headlight":
-            CustomLogger()._get_logger().info("Turn off delay Light")
 
-            # await asyncio.sleep(delay)
+        elif device_type == "headlight":
             self.light_last_state = 1
     
     async def _send_notification_to_server(self, service_type: str, notification: str):
