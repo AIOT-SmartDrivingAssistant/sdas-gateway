@@ -20,7 +20,7 @@ class ServerConnection:
     FIELD_STATUS = "status"
     FIELD_MESSAGE = "message"
     FIELD_SERVICE_TYPE = "service_type"
-    FIELD_NOTIFICATION = "notification"
+    FIELD_DESCRIPTION = "description"
     FIELD_TIMESTAMP = "timestamp"
 
     def __new__(cls, uid: str = None):
@@ -115,6 +115,16 @@ class ServerConnection:
                     if command[self.FIELD_VALUE] == "on":
                         try:
                             await IOTSystem()._start_system(self.uid)
+                            services = [
+                                    "air_cond_service",
+                                    "headlight_service",
+                                    "drowsiness_service",
+                                    "distance_service"
+                                ]
+                            
+                            for service in services:
+                                await IOTSystem()._control_service(self.uid, service, "on")
+
                             CustomLogger()._get_logger().info(f"Started system {self.uid}")
 
                             await websocket.send(json.dumps(
@@ -143,6 +153,16 @@ class ServerConnection:
                     elif command[self.FIELD_VALUE] == "off":
                         try:
                             await IOTSystem()._stop_system()
+                            services = [
+                                    "air_cond_service",
+                                    "headlight_service",
+                                    "drowsiness_service",
+                                    "distance_service"
+                                ]
+                            
+                            for service in services:
+                                await IOTSystem()._control_service(self.uid, service, "off")
+
                             CustomLogger()._get_logger().info(f"Stopped system {self.uid}")
 
                             await websocket.send(json.dumps(
@@ -225,7 +245,7 @@ class ServerConnection:
 
                 await self._send_notification_to_server(
                     service_type=command[self.FIELD_TARGET],
-                    notification=notification_message
+                    description=notification_message
                 )
 
         except websockets.exceptions.ConnectionClosed:
@@ -242,7 +262,7 @@ class ServerConnection:
         except Exception as e:
             CustomLogger()._get_logger().error(f"Failed to disconnect from server: {e}")
 
-    async def _send_notification_to_server(self, service_type: str, notification: str):
+    async def _send_notification_to_server(self, service_type: str, description: str):
         websocket = self.websocket
         if not websocket:
             CustomLogger()._get_logger().warning("Cannot send notification: WebSocket connection not established")
@@ -253,11 +273,11 @@ class ServerConnection:
                 {
                     self.FIELD_DEVICE_ID: self.uid,
                     self.FIELD_SERVICE_TYPE: service_type,
-                    self.FIELD_NOTIFICATION: notification,
+                    self.FIELD_DESCRIPTION: description,
                     self.FIELD_TIMESTAMP: datetime.now().isoformat()
                 }
             ))
-            CustomLogger()._get_logger().info(f"Sent notification to server: {notification}")
+            CustomLogger()._get_logger().info(f"Sent notification to server: {description}")
 
         except websockets.exceptions.ConnectionClosed:
             CustomLogger()._get_logger().warning("Cannot send notification: WebSocket connection closed")

@@ -257,9 +257,9 @@ class IOTSystem:
                 # asyncio.create_task(self._send_serial(uid))
                 CustomLogger()._get_logger().info("Sensor System started.")
             
-            if self.states['camera']:
-                asyncio.create_task(self._start_webcam(uid))
-                CustomLogger()._get_logger().info("Webcam System started.")
+            # if self.states['camera']:
+            #     asyncio.create_task(self._start_webcam(uid))
+            #     CustomLogger()._get_logger().info("Webcam System started.")
 
         else:
             CustomLogger()._get_logger().warning("System already running.")

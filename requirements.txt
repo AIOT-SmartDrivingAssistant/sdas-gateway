@@ -6,3 +6,6 @@ pymongo
 rich
 asyncio
 websockets
+pytz
+colorama
+pyserial-asyncio
