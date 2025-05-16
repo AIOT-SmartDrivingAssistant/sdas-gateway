@@ -278,11 +278,13 @@ class IOTSystem:
                     await self._start_camera(self.uid)
                     
                 else:
-                    await self.videocam.stop()
+                    self.videocam.stop()
                     
             command = ""
             for type in convert_type[0]:
                 command += f'!{type}:{value}#'
+                if (service_type.startswith('headlight')):
+                    command += '!headlight:0#'
                 # self.states[cvt] = value.lower() == "on"
             
         elif value is not None:
