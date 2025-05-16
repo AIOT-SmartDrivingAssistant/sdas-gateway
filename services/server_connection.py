@@ -20,7 +20,7 @@ class ServerConnection:
     FIELD_STATUS = "status"
     FIELD_MESSAGE = "message"
     FIELD_SERVICE_TYPE = "service_type"
-    FIELD_NOTIFICATION = "notification"
+    FIELD_DESCRIPTION = 'description'
     FIELD_TIMESTAMP = "timestamp"
 
     def __new__(cls, uid: str = None):
@@ -253,7 +253,7 @@ class ServerConnection:
                 {
                     self.FIELD_DEVICE_ID: self.uid,
                     self.FIELD_SERVICE_TYPE: service_type,
-                    self.FIELD_NOTIFICATION: notification,
+                    self.FIELD_DESCRIPTION: notification,
                     self.FIELD_TIMESTAMP: datetime.now().isoformat()
                 }
             ))
