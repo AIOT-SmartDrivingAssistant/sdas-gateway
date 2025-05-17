@@ -142,9 +142,11 @@ class IOTSystem:
             return
         
 
-        valid_types = {'temp_threshold', 'humid_threshold', 'dis_threshold', 'lux_threshold', 'drowsiness_threshold'}
+        valid_types = {'temp_threshold', 'humid_threshold', 'distance_threshold', 'lux_threshold', 'drowsiness_threshold'}
         if sensor_type in valid_types:
-            Database().update_service_status(uid, sensor_type, value)
+            session = Database()._instance.client.start_session()
+            with session:
+                Database().update_service_status(uid, sensor_type, value,session )
 
         else:
             CustomLogger()._get_logger().warning(f"Unknown sensor_type: {sensor_type}")
@@ -156,7 +158,7 @@ class IOTSystem:
         threshold_fields = [
             'temp_threshold',
             'humid_threshold',
-            'dis_threshold',
+            'distance_threshold',
             'lux_threshold'
         ]
         thresholds = Database().get_services_threshold(uid, is_one=True, fields=threshold_fields)
@@ -186,11 +188,12 @@ class IOTSystem:
 
     async def _start_webcam(self,uid):
         # call to database for user preferences
-        threshold = float(self.thresholds['drowsiness_threshold'])
+        service_status = Database()._instance.get_services_status_doc_by_id(uid,True)
+        wait_time = max(5.0,float(service_status['drowsiness_threshold']))
         if self.videocam:
             thresholds = {
                 'ear_threshold': 0.18,
-                'wait_time': threshold,
+                'wait_time': wait_time,
                 'show_window': True
             }
             await self.videocam.start_webcam(thresholds)
@@ -207,7 +210,7 @@ class IOTSystem:
                         try:
                             # TODO alarm to be update to yolobit
                             if play_alarm is True:
-                                await self.device.alarm_service(uid=uid, value=None, threshold=threshold, isDist=False)
+                                await self.device.alarm_service(uid=uid, value=None, threshold=wait_time, isDist=False)
                             CustomLogger()._get_logger().info(f"Alarm status updated: {play_alarm}")
 
                         except Exception as e:

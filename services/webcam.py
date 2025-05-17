@@ -106,7 +106,6 @@ class VideoCam:
         self.running = True
         self.show_window = thresholds.get('show_window', True)
         self.thresholds = thresholds
-        self.thresholds['ear_threshold'] = 0.25
         self.future = self.executor.submit(
             self._webcam_loop, mirror
         )    
