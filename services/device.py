@@ -11,7 +11,6 @@ import json
 class Device:
     FIELD_DEVICE_ID = "device_id"
     FIELD_SERVICE_TYPE = "service_type"
-    FIELD_NOTIFICATION = "notification"
     FIELD_DESCRIPTION = "description"
     FIELD_TIMESTAMP = "timestamp"
 
@@ -145,7 +144,7 @@ class Device:
         elif device_type == "headlight":
             self.light_last_state = 1
     
-    async def _send_notification_to_server(self, service_type: str, notification: str):
+    async def _send_notification_to_server(self, service_type: str, description: str):
         websocket = self.websocket
         if not websocket:
             CustomLogger()._get_logger().warning("Cannot send notification: WebSocket connection not established")
@@ -156,11 +155,11 @@ class Device:
                 {
                     self.FIELD_DEVICE_ID: self.uid,
                     self.FIELD_SERVICE_TYPE: service_type,
-                    self.FIELD_DESCRIPTION: notification,
+                    self.FIELD_DESCRIPTION: description,
                     self.FIELD_TIMESTAMP: datetime.now().isoformat()
                 }
             ))
-            CustomLogger()._get_logger().info(f"Sent notification to server:{service_type} : {notification}")
+            CustomLogger()._get_logger().info(f"Sent notification to server: {description}")
 
         except websockets.exceptions.ConnectionClosed:
             CustomLogger()._get_logger().warning("Cannot send notification: WebSocket connection closed")
