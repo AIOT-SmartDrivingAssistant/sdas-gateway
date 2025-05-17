@@ -106,13 +106,12 @@ class VideoCam:
         self.running = True
         self.show_window = thresholds.get('show_window', True)
         self.thresholds = thresholds
-        self.thresholds['ear_threshold'] = 0.25
         self.future = self.executor.submit(
             self._webcam_loop, mirror
         )    
     
-    async def set_time_threshold(self,time):
-        self.thresholds['wait_time'] = time
+    def set_time_threshold(self,time):
+        self.thresholds['wait_time'] = float(time)
         
         
     def _webcam_loop(self,mirror= False):
@@ -126,7 +125,6 @@ class VideoCam:
                 break
             if mirror:
                 frame = cv2.flip(frame,1)
-            
             rgb_frame = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
             self.last_frame = self.ear_detection(rgb_frame)
             if self.show_window:
