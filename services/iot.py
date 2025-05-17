@@ -43,7 +43,6 @@ class IOTSystem:
         self.writer = None
         self.uid = None
 
-        self.device = MagicMock()
 
 
         port = self._get_port()
@@ -65,12 +64,6 @@ class IOTSystem:
             'camera': True
         }
 
-        self.thresholds = {
-            'temp_threshold': 40.0,
-            'humid_threshold': 70.0,
-            'dis_threshold': 10.0,
-            'lux_threshold': 20.0
-        }
         
         self.videocam = VideoCam()
         self.websocket = None
@@ -80,8 +73,7 @@ class IOTSystem:
         try:
             self.reader, self.writer = await serial_asyncio.open_serial_connection(url=port, baudrate=115200)
             CustomLogger()._get_logger().info(f"Connected to serial: {port}")
-            
-            # self.device = Device(self.writer, self.uid, self.websocket)
+            self.device = Device(self.writer, self.uid, self.websocket)
 
         except Exception as e:
             CustomLogger()._get_logger().exception(f"Failed to connect to serial: {e}")
@@ -148,10 +140,12 @@ class IOTSystem:
 
         if value is None:
             return
+        
 
-        valid_types = {'temp_threshold', 'humid_threshold', 'dis_threshold', 'lux_threshold'}
+        valid_types = {'temp_threshold', 'humid_threshold', 'dis_threshold', 'lux_threshold', 'drowsiness_threshold'}
         if sensor_type in valid_types:
-            self.thresholds[sensor_type] = float(value)
+            Database().update_service_status(uid, sensor_type, value)
+
         else:
             CustomLogger()._get_logger().warning(f"Unknown sensor_type: {sensor_type}")
 
@@ -159,7 +153,15 @@ class IOTSystem:
         """
         Gửi giá trị sensor và threshold tới service tương ứng.
         """
-        thresholds = self.thresholds
+        threshold_fields = [
+            'temp_threshold',
+            'humid_threshold',
+            'dis_threshold',
+            'lux_threshold'
+        ]
+        thresholds = Database().get_services_threshold(uid, is_one=True, fields=threshold_fields)
+
+        
         # Map sensor_type sang key threshold
         threshold_key_map = {
             'temp': 'temp_threshold',
@@ -184,21 +186,13 @@ class IOTSystem:
 
     async def _start_webcam(self,uid):
         # call to database for user preferences
-        wait_time = None
-        try:
-            user_doc = next(Database()._instance.get_services_status_doc_by_id(uid, False))
-        except Exception as e:
-            CustomLogger()._get_logger().info("No services status document found for this user.")
-            CustomLogger()._get_logger().info("Defaulting to base threshold")
-            wait_time = 5.0
-        if not wait_time:
-            try:
-                wait_time_val = float(user_doc['drowsiness_threshold'])
-            except (KeyError, ValueError, TypeError):
-                wait_time_val = 5.0
-            wait_time = wait_time_val if wait_time_val > 5.0 else 5.0
-        thresholds = { 'wait_time': wait_time,'show_window': True }
+        threshold = float(self.thresholds['drowsiness_threshold'])
         if self.videocam:
+            thresholds = {
+                'ear_threshold': 0.18,
+                'wait_time': threshold,
+                'show_window': True
+            }
             await self.videocam.start_webcam(thresholds)
             last_alarm_state = False
 
@@ -213,7 +207,7 @@ class IOTSystem:
                         try:
                             # TODO alarm to be update to yolobit
                             if play_alarm is True:
-                                 self.device.alarm_service(uid=uid, value=None,threshold=None, isDist=False)
+                                await self.device.alarm_service(uid=uid, value=None, threshold=threshold, isDist=False)
                             CustomLogger()._get_logger().info(f"Alarm status updated: {play_alarm}")
 
                         except Exception as e:
@@ -342,7 +336,7 @@ class IOTSystem:
         
         try :
             if (command is not None):
-                # self.writer.write(command.encode())
+                self.writer.write(command.encode())
                 CustomLogger()._get_logger().info(f"Execute command \"{command}\"")
 
         except Exception as e:

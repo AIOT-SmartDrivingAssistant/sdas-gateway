@@ -67,6 +67,24 @@ class Database:
                     self.FIELD_UID: id
                 }
             )
+    def get_services_threshold(self, id, is_one, fields=None):
+        projection = None
+        if fields is not None:
+            projection = {field: 1 for field in fields}
+        if is_one:
+            return self.get_services_status_collection().find_one(
+                {
+                    self.FIELD_UID: id
+                },
+                projection
+            )
+        else:
+            return self.get_services_status_collection().find(
+                {
+                    self.FIELD_UID: id
+                },
+                projection
+            )
         
     def get_action_history_collection(self):
         return self.db.get_collection(self.FIELD_ACTION_HISTORY_COLLECTION)

@@ -12,6 +12,7 @@ class Device:
     FIELD_DEVICE_ID = "device_id"
     FIELD_SERVICE_TYPE = "service_type"
     FIELD_NOTIFICATION = "notification"
+    FIELD_DESCRIPTION = "description"
     FIELD_TIMESTAMP = "timestamp"
 
     def __init__(self, writer, uid, websocket):
@@ -30,24 +31,31 @@ class Device:
         Triggers the alarm and starts a timer to turn it off.
         Sends notification if alarm is triggered.
         """
-        alarm_triggered = False
-        notification_service = ""
+        dist_alarm_triggered = False
+        drowsiness_alarm_triggered = False
+        notification_service = "alarm_service"
         notification_msg = ""
-
+        
         if isDist:
             if self.alarm_last_state_dist == 1 and value < threshold:
-                alarm_triggered = True
+                dist_alarm_triggered = True
                 self.alarm_last_state_dist = 0
-                notification_service = "distance_service"
+                 
                 notification_msg = f"Proximity Alert: Object ahead is within {value} cm ahead!"
+                CustomLogger()._get_logger().info(f"Alarm Distance not activated (value={value}, threshold={threshold})")
+
         else:
             if self.alarm_last_state_drowisness == 1:
-                alarm_triggered = True
+                
+                drowsiness_alarm_triggered = True
                 self.alarm_last_state_drowisness = 0
-                notification_service = "drowsiness_service"
-                notification_msg = "Fatigue Warning: Signs of drowsiness detected!"
 
-        if alarm_triggered:
+                notification_msg = "Fatigue Warning: Signs of drowsiness detected!"
+                CustomLogger()._get_logger().info(f"Alarm Drowisness not activated (value={value}, threshold={threshold})")
+
+
+        # Xử lý bật alarm nếu có bất kỳ trigger nào
+        if dist_alarm_triggered or drowsiness_alarm_triggered:
             try:
                 self.writer.write(f"!alarm:1#".encode())
                 CustomLogger()._get_logger().info("Alarm triggered and turned ON.")
@@ -57,6 +65,7 @@ class Device:
 
             if notification_service and notification_msg:
                 await self._send_notification_to_server(notification_service, notification_msg)
+
 
     async def _turn_off_alarm(self, delay=5):
         """
@@ -147,17 +156,18 @@ class Device:
                 {
                     self.FIELD_DEVICE_ID: self.uid,
                     self.FIELD_SERVICE_TYPE: service_type,
-                    self.FIELD_NOTIFICATION: notification,
+                    self.FIELD_DESCRIPTION: notification,
                     self.FIELD_TIMESTAMP: datetime.now().isoformat()
                 }
             ))
-            CustomLogger()._get_logger().info(f"Sent notification to server: {notification}")
+            CustomLogger()._get_logger().info(f"Sent notification to server:{service_type} : {notification}")
 
         except websockets.exceptions.ConnectionClosed:
             CustomLogger()._get_logger().warning("Cannot send notification: WebSocket connection closed")
 
         except Exception as e:
             CustomLogger()._get_logger().error(f"Failed to send notification: {e}")
+
 
 
 
