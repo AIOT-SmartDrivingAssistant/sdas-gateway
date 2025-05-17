@@ -170,7 +170,7 @@ class IOTSystem:
         threshold_key_map = {
             'temp': 'temp_threshold',
             'humid': 'humid_threshold',
-            'dis': 'dis_threshold',
+            'dis': 'distance_threshold',
             'lux': 'lux_threshold',
         }
         actions = {

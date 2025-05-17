@@ -22,6 +22,8 @@ class Device:
         self.light_last_state = 1
         self.alarm_last_state_dist = 1
         self.alarm_last_state_drowisness = 1 
+        self.light_is_on = 1
+        self.fan_is_on = 1
         self.websocket = websocket
         self.uid = uid
 
@@ -79,7 +81,7 @@ class Device:
             # Reset states
             if self.alarm_last_state_drowisness == 0:
                 self.alarm_last_state_drowisness = 1
-            if self.alarm_last_state_dist == 0:
+            elif self.alarm_last_state_dist == 0:
                 self.alarm_last_state_dist = 1
 
             CustomLogger()._get_logger().info("Alarm and related states reset automatically.")
@@ -101,14 +103,22 @@ class Device:
 
             self.writer.write(f"!fan:{speed}#".encode())
             self.fan_last_state = 0
-
+            self.fan_is_on = 1
             asyncio.create_task(self.turn_off_delay("fan"))
 
             if isTemp:
                 await self._send_notification_to_server("air_cond_service", f"Decrease AC's temperature (fan speed {speed})")
             else:
                 await self._send_notification_to_server("air_cond_service", f"Decrease AC's humidity (fan speed {speed})")
-            
+        elif value < threshold and self.fan_is_on ==1:
+            self.writer.write(f"!fan:0#".encode())
+            self.fan_is_on = 0
+            self.fan_last_state = 0
+            if isTemp:
+                await self._send_notification_to_server("air_cond_service", f"Increase AC's temperature, Turn off Fan")
+            else:
+                await self._send_notification_to_server("air_cond_service", f"Increase AC's humidity, Turn off Fan")
+            asyncio.create_task(self.turn_off_delay("fan"))
         else:
             CustomLogger()._get_logger().info(f"Fan not activated (value={value}, threshold={threshold}, fan_last_state={self.fan_last_state})")
 
@@ -125,12 +135,22 @@ class Device:
             light_level = int(min_light + percent * (max_light - min_light))
 
             self.writer.write(f"!light:{light_level}#".encode())
-
+            self.light_is_on = 1
             self.light_last_state = 0
 
             asyncio.create_task(self.turn_off_delay("headlight"))
 
             await self._send_notification_to_server("headlight_service", f"Turn on headlight (level {light_level})")
+        elif value > threshold and self.light_is_on == 1:
+
+            self.writer.write(f"!light:0#".encode())
+
+            self.light_is_on = 0
+
+            asyncio.create_task(self.turn_off_delay("headlight"))
+
+            await self._send_notification_to_server("headlight_service", f"Turn off headlight")
+
         else:
             CustomLogger()._get_logger().info(f"Light not activated (value={value}, threshold={threshold}, light_last_state={self.light_last_state})")
         
