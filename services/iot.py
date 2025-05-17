@@ -144,6 +144,8 @@ class IOTSystem:
 
         valid_types = {'temp_threshold', 'humid_threshold', 'distance_threshold', 'lux_threshold', 'drowsiness_threshold'}
         if sensor_type in valid_types:
+            if sensor_type == 'drowsiness_threshold':
+                self.videocam.set_time_threshold(value)
             session = Database()._instance.client.start_session()
             with session:
                 Database().update_service_status(uid, sensor_type, value,session )
@@ -192,7 +194,7 @@ class IOTSystem:
         wait_time = max(5.0,float(service_status['drowsiness_threshold']))
         if self.videocam:
             thresholds = {
-                'ear_threshold': 0.18,
+                'ear_threshold': 0.2,
                 'wait_time': wait_time,
                 'show_window': True
             }
