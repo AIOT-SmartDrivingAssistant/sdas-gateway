@@ -18,12 +18,21 @@ class Device:
         # writer: serial_asyncio.StreamWriter
         self.writer = writer
 
-        self.fan_last_state = 1
-        self.light_last_state = 1
+
         self.alarm_last_state_dist = 1
         self.alarm_last_state_drowisness = 1 
+        
+        self.light_last_state = 1
         self.light_is_on = 1
+        self.light_is_hight = 0
+
+        self.fan_last_state = 1
         self.fan_is_on = 1
+        self.temp_is_high = 0
+        self.humid_is_high = 0
+        self.last_value_temp = 0
+        self.last_value_humid = 0 
+
         self.websocket = websocket
         self.uid = uid
 
@@ -90,37 +99,62 @@ class Device:
 
     async def fan_services(self, value, threshold, isTemp):
         """
-        Control the fan based on the value.
+        Cải thiện: Điều khiển quạt dựa trên giá trị nhiệt độ/độ ẩm và ngưỡng.
+        - Bật quạt khi cả nhiệt độ và độ ẩm đều cao hơn ngưỡng.
+        - Tắt quạt khi giá trị giảm xuống dưới ngưỡng.
+        - Gửi thông báo và ghi log chi tiết.
         """
-        if value > threshold and self.fan_last_state == 1:
+        logger = CustomLogger()._get_logger()
+        max_speed = 100
+        min_speed = 30
 
-            max_speed = 100
-            min_speed = 30
-
-            # Tính phần trăm vượt ngưỡng, giới hạn tối đa 100
-            percent = min((value - threshold) / threshold, 1.0)
-            speed = int(min_speed + percent * (max_speed - min_speed))
-
-            self.writer.write(f"!fan:{speed}#".encode())
-            self.fan_last_state = 0
-            self.fan_is_on = 1
-            asyncio.create_task(self.turn_off_delay("fan"))
-
-            if isTemp:
-                await self._send_notification_to_server("air_cond_service", f"Decrease AC's temperature (fan speed {speed})")
+        # Cập nhật trạng thái nhiệt độ/độ ẩm
+        if isTemp:
+            if value > threshold:
+                self.temp_is_high = 1
+                self.last_value_temp = value
             else:
-                await self._send_notification_to_server("air_cond_service", f"Decrease AC's humidity (fan speed {speed})")
-        elif value < threshold and self.fan_is_on ==1:
+                self.temp_is_high = 0
+        else:
+            if value > threshold:
+                self.humid_is_high = 1
+                self.last_value_humid = value
+            else:
+                self.humid_is_high = 0
+
+        # Xác định điều kiện bật quạt
+        if self.temp_is_high and self.humid_is_high:
+            if self.fan_last_state == 1:
+                # Tính tốc độ quạt dựa trên trung bình nhiệt độ và độ ẩm vượt ngưỡng
+                if isTemp:
+                    percent = min((self.last_value_temp - threshold) / threshold, 1.0)
+                else:
+                    percent = min((self.last_value_humid - threshold) / threshold, 1.0)
+                    
+                speed = int(min_speed + percent * (max_speed - min_speed))
+
+                self.writer.write(f"!fan:{speed}#".encode())
+                self.fan_last_state = 0
+                self.fan_is_on = 1
+                asyncio.create_task(self.turn_off_delay("fan"))
+                await self._send_notification_to_server(
+                    "air_cond_service",
+                    f"Decrease AC's temperature and humidity (fan speed {speed})"
+                )
+        # Điều kiện tắt quạt
+        elif (not self.temp_is_high or not self.humid_is_high) and self.fan_is_on == 1:
             self.writer.write(f"!fan:0#".encode())
             self.fan_is_on = 0
             self.fan_last_state = 0
-            if isTemp:
-                await self._send_notification_to_server("air_cond_service", f"Increase AC's temperature, Turn off Fan")
+            msg = ""
+            if isTemp and not self.temp_is_high:
+                msg = "Increase AC's temperature, Turn off Fan"
+            elif not isTemp and not self.humid_is_high:
+                msg = "Increase AC's humidity, Turn off Fan"
             else:
-                await self._send_notification_to_server("air_cond_service", f"Increase AC's humidity, Turn off Fan")
+                msg = "Turn off Fan"
+            await self._send_notification_to_server("air_cond_service", msg)
             asyncio.create_task(self.turn_off_delay("fan"))
-        else:
-            CustomLogger()._get_logger().info(f"Fan not activated (value={value}, threshold={threshold}, fan_last_state={self.fan_last_state})")
 
     async def light_service(self, value, threshold):
         """
