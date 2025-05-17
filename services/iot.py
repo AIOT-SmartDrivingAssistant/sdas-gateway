@@ -144,7 +144,7 @@ class IOTSystem:
 
         valid_types = {'temp_threshold', 'humid_threshold', 'dis_threshold', 'lux_threshold', 'drowsiness_threshold'}
         if sensor_type in valid_types:
-            Database().update_service_status(uid, sensor_type, value)
+            Database().update_service_status(uid, sensor_type, value, None)
 
         else:
             CustomLogger()._get_logger().warning(f"Unknown sensor_type: {sensor_type}")
